@@ -1,10 +1,12 @@
 import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
-// Temporary: hardcoded Supabase project values while env loading is fixed.
-const SUPABASE_URL = "https://yanhjkrrtnwzefjqsysk.supabase.co";
-const SUPABASE_ANON_KEY =
-  "sb_publishable_CvoojVL9Nh7WnthgKuHANw_8icpk";
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
 
-export const supabaseBrowser = () =>
-  createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Generic client for non-auth usage if needed
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// Browser client that correctly syncs auth state to cookies
+export const supabaseBrowser = () => createBrowserClient(supabaseUrl, supabaseAnonKey);
 
