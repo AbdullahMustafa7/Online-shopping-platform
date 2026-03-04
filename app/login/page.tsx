@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase";
 import type { UserRole } from "@/lib/types";
 import { Button, Card, ErrorText, Input, Label } from "../components/ui";
@@ -14,7 +14,7 @@ function roleHomePath(role: UserRole) {
   return "/";
 }
 
-export default function LoginPage() {
+function LoginContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const next = useMemo(() => searchParams.get("next"), [searchParams]);
@@ -104,6 +104,20 @@ export default function LoginPage() {
         </form>
       </Card>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-[70dvh] items-center justify-center">
+          Loading...
+        </div>
+      }
+    >
+      <LoginContent />
+    </Suspense>
   );
 }
 

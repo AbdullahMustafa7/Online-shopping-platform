@@ -12,16 +12,13 @@ export async function supabaseServer() {
         // Next.js 16 cookies() may not expose getAll in some contexts.
         // Fall back to an empty array so Supabase can still operate.
         getAll() {
-          // @ts-expect-error runtime guard for older/newer cookies shapes
           return typeof cookieStore.getAll === "function"
-            ? // @ts-expect-error see above
-            cookieStore.getAll()
+            ? cookieStore.getAll()
             : [];
         },
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              // @ts-expect-error Next cookies API set signature
               cookieStore.set(name, value, options);
             });
           } catch {

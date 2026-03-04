@@ -1,16 +1,8 @@
 import type { NextConfig } from "next";
 
-const withPWA = require("@ducanh2912/next-pwa").default({
-  dest: "public",
-  disable: process.env.NODE_ENV === "development",
-  register: true,
-  skipWaiting: true,
-});
-
 const nextConfig: NextConfig = {
-  webpack: (config: any) => {
-    return config;
-  },
+  // Keep Turbopack config as requested, even though plugins failed
+  turbopack: {},
 };
 
-export default withPWA(nextConfig);
+export default nextConfig;
