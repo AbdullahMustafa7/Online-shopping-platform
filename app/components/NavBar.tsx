@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { supabaseBrowser } from "@/lib/supabase";
+import { signOut, useSession } from "next-auth/react";
 
 type UserRole = "customer" | "vendor" | "agent" | "admin";
 
@@ -17,49 +17,35 @@ function roleHome(role: UserRole) {
 export function NavBar() {
   const pathname = usePathname();
   const router = useRouter();
+  const { data: session } = useSession();
   const [email, setEmail] = useState<string | null>(null);
   const [role, setRole] = useState<UserRole | null>(null);
 
   useEffect(() => {
-    const supabase = supabaseBrowser();
-
     let alive = true;
     async function load() {
-      const { data } = await supabase.auth.getUser();
-      const user = data.user;
-      if (!alive) return;
-      setEmail(user?.email ?? null);
-
-      if (!user) {
+      if (!session?.user?.id) {
+        if (!alive) return;
+        setEmail(null);
         setRole(null);
         return;
       }
-
-      const { data: profile } = await supabase
-        .from("users")
-        .select("role")
-        .eq("id", user.id)
-        .maybeSingle();
-
+      const res = await fetch("/api/users/me");
+      const profile = await res.json().catch(() => null);
       if (!alive) return;
+      setEmail(session.user.email ?? null);
       setRole((profile?.role as UserRole | undefined) ?? "customer");
     }
 
     void load();
 
-    const { data: sub } = supabase.auth.onAuthStateChange(() => {
-      void load();
-    });
-
     return () => {
       alive = false;
-      sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [session?.user?.id, session?.user?.email]);
 
   async function signOut() {
-    const supabase = supabaseBrowser();
-    await supabase.auth.signOut();
+    await signOut({ redirect: false });
     router.push("/login");
     router.refresh();
   }

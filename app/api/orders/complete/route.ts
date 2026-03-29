@@ -1,34 +1,18 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { NextResponse } from "next/server";
+import { requireSession } from "@/lib/apiAuth";
+import { connectDB } from "@/lib/mongodb";
+import { Cart } from "@/lib/models/Cart";
+import { Product } from "@/lib/models/Product";
+import { Order } from "@/lib/models/Order";
+import { OrderItem } from "@/lib/models/OrderItem";
 
 type Body = { deliveryAddress: string };
 
-function supabaseFromRequest(request: NextRequest) {
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll() {
-          // No-op for API routes.
-        },
-      },
-    },
-  );
-}
-
-export async function POST(request: NextRequest) {
-  const supabase = supabaseFromRequest(request);
+export async function POST(request: Request) {
+  await connectDB();
   const body = (await request.json().catch(() => null)) as Body | null;
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+  const session = await requireSession();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
@@ -40,50 +24,33 @@ export async function POST(request: NextRequest) {
     );
   }
 
-  const { data: cartRows, error: cartError } = await supabase
-    .from("cart")
-    .select("id,product_id,quantity")
-    .eq("user_id", user.id);
-
-  if (cartError) {
-    return NextResponse.json({ error: cartError.message }, { status: 400 });
-  }
-
-  const productIds = (cartRows ?? []).map((r) => r.product_id);
+  const cartRows: any[] = await Cart.find({ userId: session.user.id }).lean();
+  const productIds = cartRows.map((r) => r.productId);
   if (productIds.length === 0) {
     return NextResponse.json({ error: "Cart is empty." }, { status: 400 });
   }
 
-  const { data: products, error: prodError } = await supabase
-    .from("products")
-    .select("id,price,vendor_id,stock")
-    .in("id", productIds);
-
-  if (prodError) {
-    return NextResponse.json({ error: prodError.message }, { status: 400 });
-  }
-
-  const byId = new Map<string, any>((products ?? []).map((p) => [p.id, p]));
+  const products: any[] = await Product.find({ _id: { $in: productIds } }).lean();
+  const byId = new Map<string, any>(products.map((p) => [String(p._id), p]));
 
   const vendorIds = new Set<string>();
   let total = 0;
-  const orderItems: Array<{ product_id: string; quantity: number; price: number }> =
-    [];
+  const orderItems: Array<{ productId: string; quantity: number; price: number }> = [];
 
-  for (const row of cartRows ?? []) {
-    const p = byId.get(row.product_id);
+  for (const row of cartRows) {
+    const p = byId.get(String(row.productId));
     if (!p) continue;
-    const qty = Number(row.quantity ?? 0);
+    const qty = Number(row.quantity || 0);
     if (qty <= 0) continue;
-    if (Number(p.stock ?? 0) < qty) {
+    if (Number(p.stock || 0) < qty) {
       return NextResponse.json(
-        { error: `Insufficient stock for product ${p.id}.` },
+        { error: `Insufficient stock for product ${p._id}.` },
         { status: 400 },
       );
     }
-    vendorIds.add(String(p.vendor_id));
+    vendorIds.add(String(p.vendorId));
     total += Number(p.price) * qty;
-    orderItems.push({ product_id: String(p.id), quantity: qty, price: Number(p.price) });
+    orderItems.push({ productId: String(p._id), quantity: qty, price: Number(p.price) });
   }
 
   if (vendorIds.size !== 1) {
@@ -97,42 +64,25 @@ export async function POST(request: NextRequest) {
   }
 
   const vendorId = Array.from(vendorIds)[0];
-
-  const { data: order, error: orderError } = await supabase
-    .from("orders")
-    .insert({
-      customer_id: user.id,
-      vendor_id: vendorId,
-      status: "pending",
-      total,
-      delivery_address: deliveryAddress,
-    })
-    .select("id")
-    .limit(1)
-    .maybeSingle();
-
-  if (orderError || !order) {
-    return NextResponse.json({ error: orderError?.message ?? "Failed to create order." }, { status: 400 });
-  }
-
-  const { error: itemsError } = await supabase.from("order_items").insert(
+  const order = await Order.create({
+    customerId: session.user.id,
+    vendorId,
+    status: "pending",
+    total,
+    deliveryAddress,
+  });
+  await OrderItem.insertMany(
     orderItems.map((i) => ({
-      order_id: order.id,
-      product_id: i.product_id,
+      orderId: order._id,
+      productId: i.productId,
       quantity: i.quantity,
       price: i.price,
     })),
   );
-  if (itemsError) {
-    return NextResponse.json({ error: itemsError.message }, { status: 400 });
-  }
 
   // Clear cart
-  const cartIds = (cartRows ?? []).map((r) => r.id);
-  if (cartIds.length) {
-    await supabase.from("cart").delete().in("id", cartIds);
-  }
+  await Cart.deleteMany({ userId: session.user.id });
 
-  return NextResponse.json({ orderId: order.id });
+  return NextResponse.json({ orderId: String(order._id) });
 }
 

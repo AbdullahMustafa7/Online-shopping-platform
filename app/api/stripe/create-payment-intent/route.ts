@@ -1,66 +1,33 @@
-import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
+import { NextResponse } from "next/server";
 import { stripe } from "@/lib/stripe";
+import { requireSession } from "@/lib/apiAuth";
+import { connectDB } from "@/lib/mongodb";
+import { Cart } from "@/lib/models/Cart";
+import { Product } from "@/lib/models/Product";
 
-function supabaseFromRequest(request: NextRequest) {
-  return createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll() {
-          // No-op for API routes.
-        },
-      },
-    },
-  );
-}
-
-export async function POST(request: NextRequest) {
-  const supabase = supabaseFromRequest(request);
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-
-  if (!user) {
+export async function POST() {
+  await connectDB();
+  const session = await requireSession();
+  if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { data: cartRows, error: cartError } = await supabase
-    .from("cart")
-    .select("product_id,quantity")
-    .eq("user_id", user.id);
-
-  if (cartError) {
-    return NextResponse.json({ error: cartError.message }, { status: 400 });
-  }
-
-  const productIds = (cartRows ?? []).map((r) => r.product_id);
+  const cartRows: any[] = await Cart.find({ userId: session.user.id }).lean();
+  const productIds = cartRows.map((r) => r.productId);
   if (productIds.length === 0) {
     return NextResponse.json({ error: "Cart is empty." }, { status: 400 });
   }
 
-  const { data: products, error: prodError } = await supabase
-    .from("products")
-    .select("id,price,vendor_id")
-    .in("id", productIds);
-
-  if (prodError) {
-    return NextResponse.json({ error: prodError.message }, { status: 400 });
-  }
-
-  const byId = new Map<string, any>((products ?? []).map((p) => [p.id, p]));
+  const products: any[] = await Product.find({ _id: { $in: productIds } }).lean();
+  const byId = new Map<string, any>(products.map((p) => [String(p._id), p]));
 
   const vendorIds = new Set<string>();
   let total = 0;
-  for (const row of cartRows ?? []) {
-    const p = byId.get(row.product_id);
+  for (const row of cartRows) {
+    const p = byId.get(String(row.productId));
     if (!p) continue;
-    vendorIds.add(String(p.vendor_id));
-    total += Number(p.price) * Number(row.quantity ?? 0);
+    vendorIds.add(String(p.vendorId));
+    total += Number(p.price) * Number(row.quantity || 0);
   }
 
   if (vendorIds.size > 1) {
@@ -78,7 +45,7 @@ export async function POST(request: NextRequest) {
     amount,
     currency: "usd",
     automatic_payment_methods: { enabled: true },
-    metadata: { user_id: user.id },
+    metadata: { user_id: session.user.id },
   });
 
   return NextResponse.json({

@@ -1,13 +1,5 @@
 import { NextResponse, type NextRequest } from "next/server";
-import { createServerClient } from "@supabase/ssr";
-
-function redirectWithCookies(url: string | URL, response: NextResponse) {
-  const newResponse = NextResponse.redirect(url);
-  response.cookies.getAll().forEach((cookie) => {
-    newResponse.cookies.set(cookie.name, cookie.value);
-  });
-  return newResponse;
-}
+import { getToken } from "next-auth/jwt";
 
 type UserRole = "customer" | "vendor" | "agent" | "admin";
 
@@ -33,31 +25,9 @@ function isProtectedPath(pathname: string) {
 }
 
 export async function middleware(request: NextRequest) {
-  let response = NextResponse.next({
-    request: { headers: request.headers },
-  });
-
-  const supabase = createServerClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-    {
-      cookies: {
-        getAll() {
-          return request.cookies.getAll();
-        },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value, options }) => {
-            request.cookies.set(name, value);
-            response.cookies.set(name, value, options);
-          });
-        },
-      },
-    },
-  );
-
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
+  const response = NextResponse.next();
+  const token = await getToken({ req: request, secret: process.env.NEXTAUTH_SECRET });
+  const user = token ? { id: token.sub, role: token.role as UserRole | undefined } : null;
 
   const pathname = request.nextUrl.pathname;
 
@@ -66,28 +36,21 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set("next", pathname);
-    return redirectWithCookies(url, response);
+    return NextResponse.redirect(url);
   }
 
   // If not logged in, auth pages are fine
   if (!user) return response;
 
   // Fetch role for routing decisions
-  const { data: profile } = await supabase
-    .from("users")
-    .select("role")
-    .eq("email", user.email)
-    .limit(1)
-    .maybeSingle();
-
-  const role = (profile?.role as UserRole | undefined) ?? "customer";
+  const role = user.role ?? "customer";
 
   // Logged in visiting /login or /signup -> send home
   if (isAuthPage(pathname)) {
     const url = request.nextUrl.clone();
     url.pathname = roleHomePath(role);
     url.search = "";
-    return redirectWithCookies(url, response);
+    return NextResponse.redirect(url);
   }
 
   // Role guards
@@ -95,21 +58,21 @@ export async function middleware(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = roleHomePath(role);
     url.search = "";
-    return redirectWithCookies(url, response);
+    return NextResponse.redirect(url);
   }
 
   if (pathname.startsWith("/vendor") && role !== "vendor" && role !== "admin") {
     const url = request.nextUrl.clone();
     url.pathname = roleHomePath(role);
     url.search = "";
-    return redirectWithCookies(url, response);
+    return NextResponse.redirect(url);
   }
 
   if (pathname.startsWith("/agent") && role !== "agent" && role !== "admin") {
     const url = request.nextUrl.clone();
     url.pathname = roleHomePath(role);
     url.search = "";
-    return redirectWithCookies(url, response);
+    return NextResponse.redirect(url);
   }
 
   return response;

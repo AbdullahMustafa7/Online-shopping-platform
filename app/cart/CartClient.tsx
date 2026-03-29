@@ -3,7 +3,6 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
 
 export type CartItemView = {
   cart_id: string;
@@ -29,17 +28,17 @@ export function CartClient({ initialItems }: { initialItems: CartItemView[] }) {
     setError(null);
     setBusyId(cartId);
     try {
-      const supabase = supabaseBrowser();
       if (nextQty <= 0) {
-        const { error } = await supabase.from("cart").delete().eq("id", cartId);
-        if (error) throw error;
+        const res = await fetch(`/api/cart/${cartId}`, { method: "DELETE" });
+        if (!res.ok) throw new Error("Could not remove item.");
         setItems((cur) => cur.filter((i) => i.cart_id !== cartId));
       } else {
-        const { error } = await supabase
-          .from("cart")
-          .update({ quantity: nextQty })
-          .eq("id", cartId);
-        if (error) throw error;
+        const res = await fetch(`/api/cart/${cartId}`, {
+          method: "PUT",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ quantity: nextQty }),
+        });
+        if (!res.ok) throw new Error("Could not update cart.");
         setItems((cur) =>
           cur.map((i) => (i.cart_id === cartId ? { ...i, quantity: nextQty } : i)),
         );

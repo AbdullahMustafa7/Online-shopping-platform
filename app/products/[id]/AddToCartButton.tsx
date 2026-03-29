@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
 
 export function AddToCartButton({
   productId,
@@ -19,35 +18,19 @@ export function AddToCartButton({
     setError(null);
     setLoading(true);
     try {
-      const supabase = supabaseBrowser();
-      const { data: userData } = await supabase.auth.getUser();
-      const user = userData.user;
-      if (!user) {
+      const meRes = await fetch("/api/users/me");
+      if (!meRes.ok) {
         router.push(`/login?next=${encodeURIComponent(`/products/${productId}`)}`);
         return;
       }
-
-      // Upsert-like behavior: if exists, increment.
-      const { data: existing } = await supabase
-        .from("cart")
-        .select("id,quantity")
-        .eq("user_id", user.id)
-        .eq("product_id", productId)
-        .maybeSingle();
-
-      if (existing?.id) {
-        const { error: updErr } = await supabase
-          .from("cart")
-          .update({ quantity: (existing.quantity ?? 0) + 1 })
-          .eq("id", existing.id);
-        if (updErr) throw updErr;
-      } else {
-        const { error: insErr } = await supabase.from("cart").insert({
-          user_id: user.id,
-          product_id: productId,
-          quantity: 1,
-        });
-        if (insErr) throw insErr;
+      const res = await fetch("/api/cart", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ productId, quantity: 1 }),
+      });
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.error || "Could not add to cart.");
       }
 
       router.push("/cart");

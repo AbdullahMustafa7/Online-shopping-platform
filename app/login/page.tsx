@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useMemo, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
+import { signIn } from "next-auth/react";
 import type { UserRole } from "@/lib/types";
 import { Button, Card, ErrorText, Input, Label } from "../components/ui";
 
@@ -29,26 +29,16 @@ function LoginContent() {
     setError(null);
     setLoading(true);
     try {
-      const supabase = supabaseBrowser();
-      const { data, error: signInError } =
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+      const result = await signIn("credentials", {
+        email,
+        password,
+        redirect: false,
+      });
+      if (!result || result.error) throw new Error(result?.error || "Login failed.");
 
-      if (signInError) throw signInError;
-      if (!data.user) throw new Error("Login failed.");
-
-      const { data: profile, error: profileError } = await supabase
-        .from("users")
-        .select("role")
-        .eq("email", data.user.email)
-        .limit(1)
-        .maybeSingle();
-
-      if (profileError) throw profileError;
-
-      const role = (profile?.role as UserRole) ?? "customer";
+      const meRes = await fetch("/api/users/me");
+      const me = await meRes.json().catch(() => null);
+      const role = (me?.role as UserRole) ?? "customer";
       router.push(next || roleHomePath(role));
       router.refresh();
     } catch (err: any) {

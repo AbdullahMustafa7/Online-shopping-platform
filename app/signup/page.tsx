@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
+import { signIn } from "next-auth/react";
 import type { UserRole } from "@/lib/types";
 import { Button, Card, ErrorText, Input, Label, Select } from "../components/ui";
 
@@ -33,55 +33,27 @@ export default function SignupPage() {
     setSuccess(null);
     setLoading(true);
     try {
-      const supabase = supabaseBrowser();
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          email,
+          password,
+          role,
+          name: name || null,
+          phone: phone || null,
+          address: address || null,
+        }),
+      });
+      const json = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(json?.error || "Could not create account.");
 
-      const { data, error: signUpError } = await supabase.auth.signUp({
+      const login = await signIn("credentials", {
         email,
         password,
+        redirect: false,
       });
-      if (signUpError) throw signUpError;
-
-      const userId = data.user?.id;
-      if (!userId) {
-        // If email confirmations are enabled, user may be null here.
-        setSuccess(
-          "Account created. Please check your email to confirm your account, then log in.",
-        );
-        return;
-      }
-
-      const { error: profileError } = await supabase.from("users").insert({
-        id: userId,
-        email,
-        name: name || null,
-        phone: phone || null,
-        role,
-        address: address || null,
-      });
-      if (profileError) throw profileError;
-
-      if (role === "vendor") {
-        const { error: vendorError } = await supabase.from("vendors").insert({
-          user_id: userId,
-          shop_name: name ? `${name}'s Shop` : "My Shop",
-          shop_address: address || null,
-          approved: false,
-        });
-        if (vendorError) throw vendorError;
-      }
-
-      if (role === "agent") {
-        const { error: agentError } = await supabase
-          .from("delivery_agents")
-          .insert({
-            user_id: userId,
-            available: true,
-            total_deliveries: 0,
-            earnings: 0,
-          });
-        if (agentError) throw agentError;
-      }
-
+      if (!login || login.error) throw new Error(login?.error || "Login failed.");
       router.push(roleHomePath(role));
       router.refresh();
     } catch (err: any) {
