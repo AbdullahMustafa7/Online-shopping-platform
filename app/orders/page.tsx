@@ -1,19 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSessionUserId } from "@/lib/profile";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getSessionUserId } from "@/lib/session";
+import { connectDB } from "@/lib/mongodb";
+import { Order } from "@/lib/models/Order";
+import { formatINR } from "@/lib/currency";
 
 export default async function OrdersPage() {
   const userId = await getSessionUserId();
   if (!userId) redirect("/login?next=/orders");
 
-  const supabase = await supabaseServer();
-  const { data: orders, error } = await supabase
-    .from("orders")
-    .select("id,status,total,created_at")
-    .eq("customer_id", userId)
-    .order("created_at", { ascending: false })
-    .limit(50);
+  await connectDB();
+  const orders: any[] = await Order.find({ customerId: userId }).sort({ createdAt: -1 }).limit(50).lean();
 
   return (
     <div className="space-y-6">
@@ -32,31 +29,25 @@ export default async function OrdersPage() {
         </Link>
       </div>
 
-      {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error.message}
-        </div>
-      ) : null}
-
       <div className="space-y-3">
         {(orders ?? []).map((o) => (
           <Link
-            key={o.id}
-            href={`/orders/${o.id}`}
+            key={String(o._id)}
+            href={`/orders/${o._id}`}
             className="block rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm hover:border-zinc-300"
           >
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-medium text-zinc-900">
-                  Order #{String(o.id).slice(0, 8)}
+                  Order #{String(o._id).slice(0, 8)}
                 </div>
                 <div className="mt-1 text-xs text-zinc-500">
-                  {new Date(String(o.created_at)).toLocaleString()}
+                  {new Date(String(o.createdAt)).toLocaleString()}
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-sm font-semibold text-zinc-900">
-                  ${Number(o.total).toFixed(2)}
+                  {formatINR(Number(o.total))}
                 </div>
                 <div className="mt-1 text-xs font-medium text-emerald-700">
                   {String(o.status)}

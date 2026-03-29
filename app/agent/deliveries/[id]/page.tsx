@@ -1,7 +1,11 @@
 import Link from "next/link";
 import { notFound, redirect } from "next/navigation";
-import { getSessionUserId } from "@/lib/profile";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { connectDB } from "@/lib/mongodb";
+import { DeliveryAgent } from "@/lib/models/DeliveryAgent";
+import { Order } from "@/lib/models/Order";
+import { formatINR } from "@/lib/currency";
 import type { OrderStatus } from "@/lib/types";
 import { DeliveryActions } from "./DeliveryActions";
 
@@ -10,42 +14,16 @@ export default async function DeliveryDetailPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  const supabase = await supabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login?next=/agent/deliveries");
-    return;
-  }
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect("/login?next=/agent/deliveries");
   const { id } = await params;
-  const { data: profile } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", user.email)
-    .limit(1)
-    .maybeSingle();
-
-  if (!profile) {
-    redirect("/login?next=/agent/deliveries");
-    return;
-  }
-
-  const { data: agent } = await supabase
-    .from("delivery_agents")
-    .select("id")
-    .eq("user_id", profile.id)
-    .maybeSingle();
+  await connectDB();
+  const agent: any = await DeliveryAgent.findOne({ userId: session.user.id }).lean();
 
   if (!agent) redirect("/agent/dashboard");
 
-  const { data: order, error } = await supabase
-    .from("orders")
-    .select("id,status,total,delivery_address,created_at")
-    .eq("id", id)
-    .eq("agent_id", agent.id)
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !order) return notFound();
+  const order: any = await Order.findOne({ _id: id, agentId: agent._id }).lean();
+  if (!order) return notFound();
 
   return (
     <div className="space-y-6">
@@ -65,7 +43,7 @@ export default async function DeliveryDetailPage({
         <div className="flex items-start justify-between gap-4">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">
-              Delivery #{String(order.id).slice(0, 8)}
+              Delivery #{String(order._id).slice(0, 8)}
             </h1>
             <p className="mt-1 text-sm text-zinc-600">
               Status: <span className="font-medium">{String(order.status)}</span>
@@ -74,18 +52,18 @@ export default async function DeliveryDetailPage({
           <div className="text-right">
             <div className="text-sm text-zinc-600">Total</div>
             <div className="text-2xl font-semibold">
-              ${Number(order.total).toFixed(2)}
+              {formatINR(Number(order.total))}
             </div>
           </div>
         </div>
 
         <div className="mt-4 text-sm text-zinc-700">
           <span className="font-medium text-zinc-900">Deliver to:</span>{" "}
-          {order.delivery_address}
+          {order.deliveryAddress}
         </div>
 
         <div className="mt-6">
-          <DeliveryActions orderId={order.id} status={order.status as OrderStatus} />
+          <DeliveryActions orderId={String(order._id)} status={order.status as OrderStatus} />
         </div>
       </div>
     </div>

@@ -1,8 +1,11 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f0fdf4;
+  --foreground: #14532d;
+  --primary: #16a34a;
+  --primary-dark: #15803d;
+  --card-border: #bbf7d0;
 }
 
 @theme inline {
@@ -24,3 +27,12 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Green visual system overrides for existing utility-heavy pages */
+.bg-zinc-50 { background-color: #f0fdf4 !important; }
+.border-zinc-200 { border-color: var(--card-border) !important; }
+.border-zinc-300 { border-color: #86efac !important; }
+.bg-zinc-900 { background-color: var(--primary) !important; }
+.hover\:bg-zinc-800:hover { background-color: var(--primary-dark) !important; }
+.hover\:border-zinc-300:hover { border-color: #86efac !important; }
+.hover\:bg-zinc-50:hover { background-color: #dcfce7 !important; }

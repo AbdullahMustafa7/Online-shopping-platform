@@ -10,7 +10,7 @@ export function Card({
   children: ReactNode;
 }) {
   return (
-    <div className="w-full max-w-md rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm">
+    <div className="w-full max-w-md rounded-2xl border border-green-200 bg-white p-6 shadow-sm">
       <div className="mb-5">
         <h1 className="text-xl font-semibold tracking-tight text-zinc-900">
           {title}
@@ -25,7 +25,7 @@ export function Card({
 }
 
 export function Label({ children }: { children: ReactNode }) {
-  return <span className="text-sm font-medium text-zinc-800">{children}</span>;
+  return <span className="text-sm font-medium text-green-900">{children}</span>;
 }
 
 export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
@@ -33,8 +33,8 @@ export function Input(props: React.InputHTMLAttributes<HTMLInputElement>) {
     <input
       {...props}
       className={[
-        "mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm",
-        "placeholder:text-zinc-400 focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20",
+        "mt-1 w-full rounded-md border border-green-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm",
+        "placeholder:text-zinc-400 focus:border-green-600 focus:outline-none focus:ring-2 focus:ring-green-600/20",
         props.className ?? "",
       ].join(" ")}
     />
@@ -46,8 +46,8 @@ export function Select(props: React.SelectHTMLAttributes<HTMLSelectElement>) {
     <select
       {...props}
       className={[
-        "mt-1 w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm",
-        "focus:border-zinc-900 focus:outline-none focus:ring-2 focus:ring-zinc-900/20",
+        "mt-1 w-full rounded-md border border-green-200 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm",
+        "focus:border-green-600 focus:outline-none focus:ring-2 focus:ring-green-600/20",
         props.className ?? "",
       ].join(" ")}
     />
@@ -64,7 +64,7 @@ export function Button({
       {...rest}
       disabled={disabled}
       className={[
-        "inline-flex h-10 items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white shadow-sm hover:bg-zinc-800",
+        "inline-flex h-10 items-center justify-center rounded-md bg-green-600 px-4 text-sm font-medium text-white shadow-sm hover:bg-green-700",
         "disabled:cursor-not-allowed disabled:opacity-60",
         rest.className ?? "",
       ].join(" ")}

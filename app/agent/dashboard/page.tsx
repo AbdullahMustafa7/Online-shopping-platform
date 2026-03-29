@@ -1,34 +1,18 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSessionUserId } from "@/lib/profile";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { connectDB } from "@/lib/mongodb";
+import { DeliveryAgent } from "@/lib/models/DeliveryAgent";
+import { Order } from "@/lib/models/Order";
+import { formatINR } from "@/lib/currency";
 import { AcceptOrderButton } from "./AcceptOrderButton";
 
 export default async function AgentDashboardPage() {
-  const supabase = await supabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login?next=/agent/dashboard");
-    return;
-  }
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", user.email)
-    .limit(1)
-    .maybeSingle();
-
-  if (!profile) {
-    redirect("/login?next=/agent/dashboard");
-    return;
-  }
-
-  const { data: agent } = await supabase
-    .from("delivery_agents")
-    .select("id,available,total_deliveries,earnings")
-    .eq("user_id", profile.id)
-    .maybeSingle();
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect("/login?next=/agent/dashboard");
+  await connectDB();
+  const agent: any = await DeliveryAgent.findOne({ userId: session.user.id }).lean();
 
   if (!agent) {
     return (
@@ -38,13 +22,10 @@ export default async function AgentDashboardPage() {
     );
   }
 
-  const { data: availableOrders } = await supabase
-    .from("orders")
-    .select("id,total,delivery_address,created_at")
-    .eq("status", "ready")
-    .is("agent_id", null)
-    .order("created_at", { ascending: true })
-    .limit(50);
+  const availableOrders: any[] = await Order.find({ status: "ready", agentId: null })
+    .sort({ createdAt: 1 })
+    .limit(50)
+    .lean();
 
   return (
     <div className="space-y-6">
@@ -66,35 +47,35 @@ export default async function AgentDashboardPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
-        <Stat label="Total deliveries" value={String(agent.total_deliveries ?? 0)} />
-        <Stat label="Earnings" value={`$${Number(agent.earnings ?? 0).toFixed(2)}`} />
+        <Stat label="Total deliveries" value={String(agent.totalDeliveries ?? 0)} />
+        <Stat label="Earnings" value={formatINR(Number(agent.earnings ?? 0))} />
         <Stat label="Available orders" value={String(availableOrders?.length ?? 0)} />
       </div>
 
       <div className="space-y-3">
         {(availableOrders ?? []).map((o) => (
           <div
-            key={o.id}
+            key={String(o._id)}
             className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm"
           >
             <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="text-sm font-medium text-zinc-900">
-                  Order #{String(o.id).slice(0, 8)}
+                  Order #{String(o._id).slice(0, 8)}
                 </div>
                 <div className="mt-1 text-xs text-zinc-500">
-                  {new Date(String(o.created_at)).toLocaleString()}
+                  {new Date(String(o.createdAt)).toLocaleString()}
                 </div>
                 <div className="mt-2 text-sm text-zinc-700">
                   <span className="font-medium">Deliver to:</span>{" "}
-                  {o.delivery_address}
+                  {o.deliveryAddress}
                 </div>
               </div>
               <div className="flex items-start justify-between gap-4 md:flex-col md:items-end">
                 <div className="text-sm font-semibold text-zinc-900">
-                  ${Number(o.total).toFixed(2)}
+                  {formatINR(Number(o.total))}
                 </div>
-                <AcceptOrderButton orderId={o.id} agentId={agent.id} />
+                <AcceptOrderButton orderId={String(o._id)} agentId={String(agent._id)} />
               </div>
             </div>
           </div>

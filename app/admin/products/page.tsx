@@ -1,18 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSessionUserId } from "@/lib/profile";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getSessionUserId } from "@/lib/session";
+import { connectDB } from "@/lib/mongodb";
+import { Product } from "@/lib/models/Product";
+import { formatINR } from "@/lib/currency";
 
 export default async function AdminProductsPage() {
   const userId = await getSessionUserId();
   if (!userId) redirect("/login?next=/admin/products");
 
-  const supabase = await supabaseServer();
-  const { data: products, error } = await supabase
-    .from("products")
-    .select("id,name,price,stock,vendor_id,created_at")
-    .order("created_at", { ascending: false })
-    .limit(200);
+  await connectDB();
+  const products: any[] = await Product.find({}).sort({ createdAt: -1 }).limit(200).lean();
 
   return (
     <div className="space-y-6">
@@ -29,12 +27,6 @@ export default async function AdminProductsPage() {
         </Link>
       </div>
 
-      {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error.message}
-        </div>
-      ) : null}
-
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-50 text-xs font-medium text-zinc-600">
@@ -48,15 +40,15 @@ export default async function AdminProductsPage() {
           </thead>
           <tbody>
             {(products ?? []).map((p) => (
-              <tr key={p.id} className="border-t border-zinc-100">
+              <tr key={String(p._id)} className="border-t border-zinc-100">
                 <td className="px-4 py-3 font-medium text-zinc-900">{p.name}</td>
-                <td className="px-4 py-3">${Number(p.price).toFixed(2)}</td>
+                <td className="px-4 py-3">{formatINR(Number(p.price))}</td>
                 <td className="px-4 py-3">{p.stock}</td>
                 <td className="px-4 py-3 text-xs text-zinc-600">
-                  {String(p.vendor_id).slice(0, 8)}
+                  {String(p.vendorId).slice(0, 8)}
                 </td>
                 <td className="px-4 py-3 text-xs text-zinc-600">
-                  {new Date(String(p.created_at)).toLocaleString()}
+                  {new Date(String(p.createdAt)).toLocaleString()}
                 </td>
               </tr>
             ))}

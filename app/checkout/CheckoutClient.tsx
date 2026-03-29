@@ -4,6 +4,7 @@ import { Elements, PaymentElement, useElements, useStripe } from "@stripe/react-
 import { loadStripe } from "@stripe/stripe-js";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { formatINR } from "@/lib/currency";
 
 const stripePromise = loadStripe(
   process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!,
@@ -25,7 +26,7 @@ function InnerCheckoutForm({
   const [error, setError] = useState<string | null>(null);
 
   const formatted = useMemo(() => {
-    return `$${(amount / 100).toFixed(2)}`;
+    return formatINR(amount / 100);
   }, [amount]);
 
   async function onPay(e: React.FormEvent) {

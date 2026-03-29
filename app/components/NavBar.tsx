@@ -44,7 +44,7 @@ export function NavBar() {
     };
   }, [session?.user?.id, session?.user?.email]);
 
-  async function signOut() {
+  async function handleSignOut() {
     await signOut({ redirect: false });
     router.push("/login");
     router.refresh();
@@ -53,7 +53,7 @@ export function NavBar() {
   const isAuthPage = pathname === "/login" || pathname === "/signup";
 
   return (
-    <header className="border-b border-zinc-200 bg-white">
+    <header className="border-b border-green-200 bg-white/95 backdrop-blur">
       <div className="mx-auto flex w-full max-w-6xl items-center justify-between px-4 py-3">
         <div className="flex items-center gap-4">
           <Link href="/" className="text-lg font-semibold tracking-tight">
@@ -88,8 +88,8 @@ export function NavBar() {
                 {email}
               </span>
               <button
-                onClick={signOut}
-                className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                onClick={handleSignOut}
+                className="rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
               >
                 Sign out
               </button>
@@ -105,7 +105,7 @@ export function NavBar() {
                 </Link>
                 <Link
                   href="/signup"
-                  className="rounded-md bg-zinc-900 px-3 py-2 text-sm font-medium text-white hover:bg-zinc-800"
+                  className="rounded-md bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
                 >
                   Sign up
                 </Link>

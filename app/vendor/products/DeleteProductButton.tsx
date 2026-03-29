@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
 
 export function DeleteProductButton({ productId }: { productId: string }) {
   const router = useRouter();
@@ -14,9 +13,8 @@ export function DeleteProductButton({ productId }: { productId: string }) {
     setError(null);
     setLoading(true);
     try {
-      const supabase = supabaseBrowser();
-      const { error } = await supabase.from("products").delete().eq("id", productId);
-      if (error) throw error;
+      const res = await fetch(`/api/products/${productId}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Could not delete.");
       router.refresh();
     } catch (err: any) {
       setError(err?.message ?? "Could not delete.");

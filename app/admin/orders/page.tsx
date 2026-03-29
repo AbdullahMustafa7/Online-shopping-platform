@@ -1,7 +1,9 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSessionUserId } from "@/lib/profile";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getSessionUserId } from "@/lib/session";
+import { connectDB } from "@/lib/mongodb";
+import { Order } from "@/lib/models/Order";
+import { formatINR } from "@/lib/currency";
 
 type SearchParams = { status?: string };
 
@@ -16,16 +18,11 @@ export default async function AdminOrdersPage({
   const sp = await searchParams;
   const status = (sp.status ?? "").trim();
 
-  const supabase = await supabaseServer();
-  let query = supabase
-    .from("orders")
-    .select("id,status,total,customer_id,vendor_id,agent_id,created_at")
-    .order("created_at", { ascending: false })
-    .limit(200);
-
-  if (status) query = query.eq("status", status);
-
-  const { data: orders, error } = await query;
+  await connectDB();
+  const orders: any[] = await Order.find(status ? { status } : {})
+    .sort({ createdAt: -1 })
+    .limit(200)
+    .lean();
 
   return (
     <div className="space-y-6">
@@ -67,12 +64,6 @@ export default async function AdminOrdersPage({
         </button>
       </form>
 
-      {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error.message}
-        </div>
-      ) : null}
-
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-50 text-xs font-medium text-zinc-600">
@@ -87,23 +78,23 @@ export default async function AdminOrdersPage({
           </thead>
           <tbody>
             {(orders ?? []).map((o) => (
-              <tr key={o.id} className="border-t border-zinc-100">
+              <tr key={String(o._id)} className="border-t border-zinc-100">
                 <td className="px-4 py-3 font-medium text-zinc-900">
-                  {String(o.id).slice(0, 8)}
+                  {String(o._id).slice(0, 8)}
                   <div className="text-xs text-zinc-500">
-                    {new Date(String(o.created_at)).toLocaleString()}
+                    {new Date(String(o.createdAt)).toLocaleString()}
                   </div>
                 </td>
                 <td className="px-4 py-3">{String(o.status)}</td>
-                <td className="px-4 py-3">${Number(o.total).toFixed(2)}</td>
+                <td className="px-4 py-3">{formatINR(Number(o.total))}</td>
                 <td className="px-4 py-3 text-xs text-zinc-600">
-                  {String(o.customer_id).slice(0, 8)}
+                  {String(o.customerId).slice(0, 8)}
                 </td>
                 <td className="px-4 py-3 text-xs text-zinc-600">
-                  {String(o.vendor_id).slice(0, 8)}
+                  {String(o.vendorId).slice(0, 8)}
                 </td>
                 <td className="px-4 py-3 text-xs text-zinc-600">
-                  {o.agent_id ? String(o.agent_id).slice(0, 8) : "—"}
+                  {o.agentId ? String(o.agentId).slice(0, 8) : "—"}
                 </td>
               </tr>
             ))}

@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
 
 export default function NewVendorProductPage() {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>(
+  const [categories, setCategories] = useState<Array<{ _id: string; id: string; name: string }>>(
     [],
   );
   const [vendorId, setVendorId] = useState<string | null>(null);
@@ -23,28 +22,17 @@ export default function NewVendorProductPage() {
   const [imageUrl, setImageUrl] = useState("");
 
   useEffect(() => {
-    const supabase = supabaseBrowser();
     let alive = true;
     async function load() {
-      const { data: userData } = await supabase.auth.getUser();
-      const userId = userData.user?.id;
-      if (!userId) return;
-
-      const { data: vendor } = await supabase
-        .from("vendors")
-        .select("id")
-        .eq("user_id", userId)
-        .maybeSingle();
-
-      const { data: cats } = await supabase
-        .from("categories")
-        .select("id,name")
-        .order("name", { ascending: true });
-
+      const [vRes, cRes] = await Promise.all([fetch("/api/vendors"), fetch("/api/categories")]);
+      const vendors = await vRes.json().catch(() => []);
+      const cats = await cRes.json().catch(() => []);
       if (!alive) return;
-      setVendorId(vendor?.id ?? null);
-      setCategories((cats ?? []) as any);
-      if (cats && cats[0]?.id) setCategoryId(String(cats[0].id));
+      setVendorId(vendors?.[0]?._id ?? null);
+      setCategories(
+        (cats ?? []).map((c: any) => ({ _id: String(c._id), id: String(c._id), name: c.name })) as any,
+      );
+      if (cats && cats[0]?._id) setCategoryId(String(cats[0]._id));
     }
     void load();
     return () => {
@@ -61,17 +49,20 @@ export default function NewVendorProductPage() {
     }
     setLoading(true);
     try {
-      const supabase = supabaseBrowser();
-      const { error } = await supabase.from("products").insert({
-        vendor_id: vendorId,
-        category_id: categoryId || null,
+      const res = await fetch("/api/products", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+        vendorId: vendorId,
+        categoryId: categoryId || null,
         name,
         description: description || null,
         price: Number(price),
         stock: Number(stock),
-        image_url: imageUrl || null,
+        imageUrl: imageUrl || null,
+      }),
       });
-      if (error) throw error;
+      if (!res.ok) throw new Error("Could not create product.");
       router.push("/vendor/products");
       router.refresh();
     } catch (err: any) {
@@ -124,7 +115,7 @@ export default function NewVendorProductPage() {
             className="mt-1 w-full rounded-md border border-zinc-300 px-3 py-2 text-sm"
           >
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>
+              <option key={c._id?.toString()} value={c.id}>
                 {c.name}
               </option>
             ))}

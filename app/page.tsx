@@ -1,5 +1,8 @@
 import Link from "next/link";
-import { supabaseServer } from "@/lib/supabase/server";
+import { connectDB } from "@/lib/mongodb";
+import { Category } from "@/lib/models/Category";
+import { Product } from "@/lib/models/Product";
+import { formatINR } from "@/lib/currency";
 
 export default function Home() {
   // Server component: safe to fetch categories/products directly.
@@ -9,22 +12,13 @@ export default function Home() {
 }
 
 async function HomePage() {
-  const supabase = await supabaseServer();
-  const { data: categories } = await supabase
-    .from("categories")
-    .select("id,name,image_url")
-    .order("created_at", { ascending: false })
-    .limit(8);
-
-  const { data: featured } = await supabase
-    .from("products")
-    .select("id,name,price,image_url")
-    .order("created_at", { ascending: false })
-    .limit(8);
+  await connectDB();
+  const categories: any[] = await Category.find({}).sort({ createdAt: -1 }).limit(8).lean();
+  const featured: any[] = await Product.find({}).sort({ createdAt: -1 }).limit(8).lean();
 
   return (
     <div className="space-y-10">
-      <section className="rounded-3xl border border-zinc-200 bg-white p-8 shadow-sm">
+      <section className="rounded-3xl border border-green-200 bg-gradient-to-br from-green-50 to-white p-8 shadow-sm">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm font-medium text-emerald-700">
@@ -41,7 +35,7 @@ async function HomePage() {
           <div className="flex gap-3">
             <Link
               href="/products"
-              className="inline-flex h-10 items-center justify-center rounded-md bg-zinc-900 px-4 text-sm font-medium text-white hover:bg-zinc-800"
+              className="inline-flex h-10 items-center justify-center rounded-md bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700"
             >
               Browse products
             </Link>
@@ -65,9 +59,9 @@ async function HomePage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {(categories ?? []).map((c) => (
             <Link
-              key={c.id}
-              href={`/products?category=${encodeURIComponent(String(c.id))}`}
-              className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm hover:border-zinc-300"
+              key={c._id?.toString()}
+              href={`/products?category=${encodeURIComponent(String(c._id))}`}
+              className="rounded-2xl border border-green-200 bg-white p-4 shadow-sm hover:border-green-300 hover:bg-green-50"
             >
               <div className="text-sm font-medium text-zinc-900">{c.name}</div>
               <div className="mt-1 text-xs text-zinc-500">Explore</div>
@@ -93,13 +87,13 @@ async function HomePage() {
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4">
           {(featured ?? []).map((p) => (
             <Link
-              key={p.id}
-              href={`/products/${p.id}`}
-              className="rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm hover:border-zinc-300"
+              key={p._id?.toString()}
+              href={`/products/${p._id}`}
+              className="rounded-2xl border border-green-200 bg-white p-4 shadow-sm hover:border-green-300"
             >
               <div className="text-sm font-medium text-zinc-900">{p.name}</div>
               <div className="mt-2 text-sm font-semibold text-zinc-900">
-                ${Number(p.price).toFixed(2)}
+                {formatINR(Number(p.price))}
               </div>
             </Link>
           ))}

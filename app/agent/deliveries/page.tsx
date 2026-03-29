@@ -1,42 +1,21 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSessionUserId } from "@/lib/profile";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { connectDB } from "@/lib/mongodb";
+import { DeliveryAgent } from "@/lib/models/DeliveryAgent";
+import { Order } from "@/lib/models/Order";
+import { formatINR } from "@/lib/currency";
 
 export default async function AgentDeliveriesPage() {
-  const supabase = await supabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login?next=/agent/deliveries");
-    return;
-  }
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", user.email)
-    .limit(1)
-    .maybeSingle();
-
-  if (!profile) {
-    redirect("/login?next=/agent/deliveries");
-    return;
-  }
-
-  const { data: agent } = await supabase
-    .from("delivery_agents")
-    .select("id")
-    .eq("user_id", profile.id)
-    .maybeSingle();
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect("/login?next=/agent/deliveries");
+  await connectDB();
+  const agent: any = await DeliveryAgent.findOne({ userId: session.user.id }).lean();
 
   if (!agent) redirect("/agent/dashboard");
 
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("id,status,total,delivery_address,created_at")
-    .eq("agent_id", agent.id)
-    .order("created_at", { ascending: false })
-    .limit(100);
+  const orders: any[] = await Order.find({ agentId: agent._id }).sort({ createdAt: -1 }).limit(100).lean();
 
   const active = (orders ?? []).filter((o) =>
     ["picked_up", "on_the_way"].includes(String(o.status)),
@@ -79,26 +58,26 @@ function Section({ title, items }: { title: string; items: any[] }) {
       ) : (
         items.map((o) => (
           <Link
-            key={o.id}
-            href={`/agent/deliveries/${o.id}`}
+            key={String(o._id)}
+            href={`/agent/deliveries/${o._id}`}
             className="block rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm hover:border-zinc-300"
           >
             <div className="flex items-center justify-between gap-3">
               <div>
                 <div className="text-sm font-medium text-zinc-900">
-                  Order #{String(o.id).slice(0, 8)}
+                  Order #{String(o._id).slice(0, 8)}
                 </div>
                 <div className="mt-1 text-xs text-zinc-500">
-                  {new Date(String(o.created_at)).toLocaleString()}
+                  {new Date(String(o.createdAt)).toLocaleString()}
                 </div>
                 <div className="mt-2 text-sm text-zinc-700">
                   <span className="font-medium">Deliver to:</span>{" "}
-                  {o.delivery_address}
+                  {o.deliveryAddress}
                 </div>
               </div>
               <div className="text-right">
                 <div className="text-sm font-semibold text-zinc-900">
-                  ${Number(o.total).toFixed(2)}
+                  {formatINR(Number(o.total))}
                 </div>
                 <div className="mt-1 text-xs font-medium text-emerald-700">
                   {String(o.status)}

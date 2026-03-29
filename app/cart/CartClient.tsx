@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
+import { formatINR } from "@/lib/currency";
 
 export type CartItemView = {
   cart_id: string;
@@ -92,7 +93,7 @@ export function CartClient({ initialItems }: { initialItems: CartItemView[] }) {
                       {i.name}
                     </div>
                     <div className="mt-1 text-sm text-zinc-600">
-                      ${i.price.toFixed(2)}
+                      {formatINR(i.price)}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 sm:gap-2">
@@ -125,7 +126,7 @@ export function CartClient({ initialItems }: { initialItems: CartItemView[] }) {
                 <div className="mt-3 text-right text-sm text-zinc-700">
                   Line total:{" "}
                   <span className="font-semibold text-zinc-900">
-                    ${(i.price * i.quantity).toFixed(2)}
+                    {formatINR(i.price * i.quantity)}
                   </span>
                 </div>
               </div>
@@ -136,7 +137,7 @@ export function CartClient({ initialItems }: { initialItems: CartItemView[] }) {
             <div className="mt-3 flex items-center justify-between text-sm">
               <span className="text-zinc-600">Total</span>
               <span className="font-semibold text-zinc-900">
-                ${total.toFixed(2)}
+                {formatINR(total)}
               </span>
             </div>
             <Link

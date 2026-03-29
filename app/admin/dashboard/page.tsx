@@ -1,25 +1,22 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSessionUserId } from "@/lib/profile";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getSessionUserId } from "@/lib/session";
+import { connectDB } from "@/lib/mongodb";
+import { Order } from "@/lib/models/Order";
+import { User } from "@/lib/models/User";
+import { Vendor } from "@/lib/models/Vendor";
+import { formatINR } from "@/lib/currency";
 
 export default async function AdminDashboardPage() {
   const userId = await getSessionUserId();
   if (!userId) redirect("/login?next=/admin/dashboard");
 
-  const supabase = await supabaseServer();
-
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("id,total,status")
-    .limit(5000);
-
-  const { data: users } = await supabase.from("users").select("id,role").limit(5000);
-
-  const { data: vendors } = await supabase
-    .from("vendors")
-    .select("id,approved")
-    .limit(5000);
+  await connectDB();
+  const [orders, users, vendors] = await Promise.all([
+    Order.find({}).limit(5000).lean(),
+    User.find({}).limit(5000).lean(),
+    Vendor.find({}).limit(5000).lean(),
+  ]);
 
   const totalOrders = orders?.length ?? 0;
   const revenue = (orders ?? []).reduce((sum, o) => sum + Number(o.total ?? 0), 0);
@@ -53,7 +50,7 @@ export default async function AdminDashboardPage() {
 
       <div className="grid grid-cols-1 gap-3 md:grid-cols-4">
         <Stat label="Total orders" value={String(totalOrders)} />
-        <Stat label="Revenue" value={`$${revenue.toFixed(2)}`} />
+        <Stat label="Revenue" value={formatINR(revenue)} />
         <Stat label="Total users" value={String(totalUsers)} />
         <Stat label="Pending vendors" value={String(pendingVendors)} />
       </div>

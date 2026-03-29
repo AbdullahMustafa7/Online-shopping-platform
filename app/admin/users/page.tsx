@@ -1,34 +1,28 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSessionUserId } from "@/lib/profile";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getSessionUserId } from "@/lib/session";
+import { connectDB } from "@/lib/mongodb";
+import { User } from "@/lib/models/User";
+import { Vendor } from "@/lib/models/Vendor";
+import { DeliveryAgent } from "@/lib/models/DeliveryAgent";
 import { ToggleAgentActive, ToggleVendorApproved } from "./ApproveButtons";
 
 export default async function AdminUsersPage() {
   const userId = await getSessionUserId();
   if (!userId) redirect("/login?next=/admin/users");
 
-  const supabase = await supabaseServer();
-
-  const { data: users, error } = await supabase
-    .from("users")
-    .select("id,email,name,phone,role,created_at")
-    .order("created_at", { ascending: false })
-    .limit(200);
-
-  const { data: vendors } = await supabase
-    .from("vendors")
-    .select("id,user_id,shop_name,approved");
-
-  const { data: agents } = await supabase
-    .from("delivery_agents")
-    .select("id,user_id,available,total_deliveries,earnings");
+  await connectDB();
+  const [users, vendors, agents] = await Promise.all([
+    User.find({}).sort({ createdAt: -1 }).limit(200).lean(),
+    Vendor.find({}).lean(),
+    DeliveryAgent.find({}).lean(),
+  ]);
 
   const vendorByUser = new Map<string, any>(
-    (vendors ?? []).map((v) => [String(v.user_id), v]),
+    (vendors ?? []).map((v: any) => [String(v.userId), v]),
   );
   const agentByUser = new Map<string, any>(
-    (agents ?? []).map((a) => [String(a.user_id), a]),
+    (agents ?? []).map((a: any) => [String(a.userId), a]),
   );
 
   return (
@@ -48,12 +42,6 @@ export default async function AdminUsersPage() {
         </Link>
       </div>
 
-      {error ? (
-        <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
-          {error.message}
-        </div>
-      ) : null}
-
       <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm">
         <table className="w-full text-left text-sm">
           <thead className="bg-zinc-50 text-xs font-medium text-zinc-600">
@@ -65,11 +53,11 @@ export default async function AdminUsersPage() {
             </tr>
           </thead>
           <tbody>
-            {(users ?? []).map((u) => {
-              const vendor = vendorByUser.get(String(u.id));
-              const agent = agentByUser.get(String(u.id));
+            {(users ?? []).map((u: any) => {
+              const vendor = vendorByUser.get(String(u._id));
+              const agent = agentByUser.get(String(u._id));
               return (
-                <tr key={u.id} className="border-t border-zinc-100">
+                <tr key={String(u._id)} className="border-t border-zinc-100">
                   <td className="px-4 py-3">
                     <div className="font-medium text-zinc-900">
                       {u.name ?? "—"}
@@ -84,18 +72,18 @@ export default async function AdminUsersPage() {
                   <td className="px-4 py-3 text-xs text-zinc-600">
                     <div>Phone: {u.phone ?? "—"}</div>
                     <div>
-                      Created: {new Date(String(u.created_at)).toLocaleString()}
+                      Created: {new Date(String(u.createdAt)).toLocaleString()}
                     </div>
                     {vendor ? (
                       <div className="mt-2">
-                        Vendor: {vendor.shop_name} (
+                        Vendor: {vendor.shopName} (
                         {vendor.approved ? "approved" : "pending"})
                       </div>
                     ) : null}
                     {agent ? (
                       <div className="mt-2">
                         Agent: {agent.available ? "active" : "inactive"} •{" "}
-                        {agent.total_deliveries} deliveries • $
+                        {agent.totalDeliveries} deliveries • $
                         {Number(agent.earnings ?? 0).toFixed(2)}
                       </div>
                     ) : null}
@@ -104,12 +92,12 @@ export default async function AdminUsersPage() {
                     <div className="flex justify-end">
                       {u.role === "vendor" && vendor ? (
                         <ToggleVendorApproved
-                          vendorId={vendor.id}
+                          vendorId={String(vendor._id)}
                           approved={!!vendor.approved}
                         />
                       ) : u.role === "agent" && agent ? (
                         <ToggleAgentActive
-                          agentId={agent.id}
+                          agentId={String(agent._id)}
                           active={!!agent.available}
                         />
                       ) : (

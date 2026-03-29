@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getMyProfile, getSessionUserId } from "@/lib/profile";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getMyProfile, getSessionUserId } from "@/lib/session";
+import { connectDB } from "@/lib/mongodb";
+import { Cart } from "@/lib/models/Cart";
 import { CheckoutClient } from "./CheckoutClient";
 
 export default async function CheckoutPage() {
@@ -9,13 +10,8 @@ export default async function CheckoutPage() {
   if (!userId) redirect("/login?next=/checkout");
 
   const profile = await getMyProfile();
-  const supabase = await supabaseServer();
-
-  const { data: cartRows } = await supabase
-    .from("cart")
-    .select("id")
-    .eq("user_id", userId)
-    .limit(1);
+  await connectDB();
+  const cartRows = await Cart.find({ userId }).limit(1).lean();
 
   if (!cartRows || cartRows.length === 0) {
     return (

@@ -1,33 +1,17 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { getSessionUserId } from "@/lib/profile";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
+import { connectDB } from "@/lib/mongodb";
+import { Vendor } from "@/lib/models/Vendor";
+import { Order } from "@/lib/models/Order";
+import { formatINR } from "@/lib/currency";
 
 export default async function VendorDashboardPage() {
-  const supabase = await supabaseServer();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (!user) {
-    redirect("/login?next=/vendor/dashboard");
-    return;
-  }
-
-  const { data: profile } = await supabase
-    .from("users")
-    .select("id")
-    .eq("email", user.email)
-    .limit(1)
-    .maybeSingle();
-
-  if (!profile) {
-    redirect("/login?next=/vendor/dashboard");
-    return;
-  }
-
-  const { data: vendor } = await supabase
-    .from("vendors")
-    .select("id,shop_name,approved,created_at")
-    .eq("user_id", profile.id)
-    .maybeSingle();
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) redirect("/login?next=/vendor/dashboard");
+  await connectDB();
+  const vendor: any = await Vendor.findOne({ userId: session.user.id }).lean();
 
   if (!vendor) {
     return (
@@ -37,12 +21,7 @@ export default async function VendorDashboardPage() {
     );
   }
 
-  const { data: orders } = await supabase
-    .from("orders")
-    .select("id,total,status,created_at")
-    .eq("vendor_id", vendor.id)
-    .order("created_at", { ascending: false })
-    .limit(200);
+  const orders: any[] = await Order.find({ vendorId: vendor._id }).sort({ createdAt: -1 }).limit(200).lean();
 
   const totalOrders = orders?.length ?? 0;
   const revenue = (orders ?? []).reduce((sum, o) => sum + Number(o.total ?? 0), 0);
@@ -56,7 +35,7 @@ export default async function VendorDashboardPage() {
             Vendor dashboard
           </h1>
           <p className="mt-1 text-sm text-zinc-600">
-            {vendor.shop_name}{" "}
+            {vendor.shopName}{" "}
             {!vendor.approved ? (
               <span className="inline-block mt-2 sm:mt-0 sm:ml-2 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-800">
                 Pending approval
@@ -83,7 +62,7 @@ export default async function VendorDashboardPage() {
       <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
         <Stat label="Total orders" value={String(totalOrders)} />
         <Stat label="Pending" value={String(pending)} />
-        <Stat label="Revenue" value={`$${revenue.toFixed(2)}`} />
+        <Stat label="Revenue" value={formatINR(revenue)} />
       </div>
     </div>
   );

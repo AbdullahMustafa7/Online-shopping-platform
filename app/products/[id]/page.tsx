@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { supabaseServer } from "@/lib/supabase/server";
+import { connectDB } from "@/lib/mongodb";
+import { Product } from "@/lib/models/Product";
+import { formatINR } from "@/lib/currency";
 import { AddToCartButton } from "./AddToCartButton";
 
 export default async function ProductDetailPage({
@@ -9,17 +11,9 @@ export default async function ProductDetailPage({
   params: Promise<{ id: string }>;
 }) {
   const { id } = await params;
-  const supabase = await supabaseServer();
-
-  const { data: product, error } = await supabase
-    .from("products")
-    .select(
-      "id,name,description,price,stock,image_url,vendor_id,category_id,created_at",
-    )
-    .limit(1)
-    .maybeSingle();
-
-  if (error || !product) return notFound();
+  await connectDB();
+  const product: any = await Product.findById(id).lean();
+  if (!product) return notFound();
 
   return (
     <div className="space-y-6">
@@ -43,7 +37,7 @@ export default async function ProductDetailPage({
               {product.name}
             </h1>
             <div className="mt-2 text-2xl font-semibold text-zinc-900">
-              ${Number(product.price).toFixed(2)}
+              {formatINR(Number(product.price))}
             </div>
             <div className="mt-2 text-sm text-zinc-600">
               {product.stock === 0
@@ -60,10 +54,10 @@ export default async function ProductDetailPage({
             <p className="text-sm text-zinc-500">No description.</p>
           )}
 
-          <AddToCartButton productId={product.id} disabled={product.stock === 0} />
+          <AddToCartButton productId={String(product._id)} disabled={product.stock === 0} />
 
           <div className="text-xs text-zinc-500">
-            Product ID: {product.id}
+            Product ID: {String(product._id)}
           </div>
         </div>
       </div>

@@ -50,7 +50,7 @@ export default function RootLayout({
       >
         <AuthProvider>
           <ServiceWorkerRegister />
-          <div className="min-h-dvh bg-zinc-50 text-zinc-900 pb-16 sm:pb-0">
+          <div className="min-h-dvh bg-green-50 text-zinc-900 pb-16 sm:pb-0">
             <NavBar />
             <div className="mx-auto w-full max-w-6xl px-4 py-6">{children}</div>
             <BottomNav />

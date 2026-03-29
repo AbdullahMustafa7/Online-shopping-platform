@@ -1,6 +1,9 @@
 import { redirect } from "next/navigation";
-import { getSessionUserId } from "@/lib/profile";
-import { supabaseServer } from "@/lib/supabase/server";
+import { getSessionUserId } from "@/lib/session";
+import { connectDB } from "@/lib/mongodb";
+import { Vendor } from "@/lib/models/Vendor";
+import { Product } from "@/lib/models/Product";
+import { Category } from "@/lib/models/Category";
 import { EditProductClient } from "./ui";
 
 export default async function EditVendorProductPage({
@@ -12,33 +15,27 @@ export default async function EditVendorProductPage({
   if (!userId) redirect("/login?next=/vendor/products");
   const { id } = await params;
 
-  const supabase = await supabaseServer();
-  const { data: vendor } = await supabase
-    .from("vendors")
-    .select("id")
-    .eq("user_id", userId)
-    .maybeSingle();
+  await connectDB();
+  const vendor: any = await Vendor.findOne({ userId }).lean();
 
   if (!vendor) redirect("/vendor/products");
 
-  const { data: product } = await supabase
-    .from("products")
-    .select("id,name,description,price,stock,category_id,image_url,vendor_id")
-    .eq("id", id)
-    .eq("vendor_id", vendor.id)
-    .maybeSingle();
+  const product: any = await Product.findOne({ _id: id, vendorId: vendor._id }).lean();
 
   if (!product) redirect("/vendor/products");
 
-  const { data: categories } = await supabase
-    .from("categories")
-    .select("id,name")
-    .order("name", { ascending: true });
+  const categories: any[] = await Category.find({}).sort({ name: 1 }).lean();
 
   return (
     <EditProductClient
       product={product as any}
-      categories={(categories ?? []) as any}
+      categories={
+        (categories ?? []).map((c) => ({
+          _id: String(c._id),
+          id: String(c._id),
+          name: c.name,
+        })) as any
+      }
     />
   );
 }

@@ -3,14 +3,13 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
 
 export function EditProductClient({
   product,
   categories,
 }: {
   product: any;
-  categories: Array<{ id: string; name: string }>;
+  categories: Array<{ _id?: string; id: string; name: string }>;
 }) {
   const router = useRouter();
   const [loading, setLoading] = useState(false);
@@ -20,27 +19,27 @@ export function EditProductClient({
   const [description, setDescription] = useState(product.description ?? "");
   const [price, setPrice] = useState(String(product.price ?? 0));
   const [stock, setStock] = useState(String(product.stock ?? 0));
-  const [categoryId, setCategoryId] = useState(String(product.category_id ?? ""));
-  const [imageUrl, setImageUrl] = useState(String(product.image_url ?? ""));
+  const [categoryId, setCategoryId] = useState(String(product.categoryId ?? ""));
+  const [imageUrl, setImageUrl] = useState(String(product.imageUrl ?? ""));
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
     setLoading(true);
     try {
-      const supabase = supabaseBrowser();
-      const { error } = await supabase
-        .from("products")
-        .update({
+      const res = await fetch(`/api/products/${product._id || product.id}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
           name,
           description: description || null,
           price: Number(price),
           stock: Number(stock),
-          category_id: categoryId || null,
-          image_url: imageUrl || null,
-        })
-        .eq("id", product.id);
-      if (error) throw error;
+          categoryId: categoryId || null,
+          imageUrl: imageUrl || null,
+        }),
+      });
+      if (!res.ok) throw new Error("Could not update product.");
       router.push("/vendor/products");
       router.refresh();
     } catch (err: any) {
@@ -94,7 +93,7 @@ export function EditProductClient({
           >
             <option value="">None</option>
             {categories.map((c) => (
-              <option key={c.id} value={c.id}>
+              <option key={c._id?.toString()} value={c.id}>
                 {c.name}
               </option>
             ))}

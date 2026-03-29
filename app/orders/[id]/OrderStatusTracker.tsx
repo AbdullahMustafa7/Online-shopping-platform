@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
 import type { OrderStatus } from "@/lib/types";
 
 const FLOW: OrderStatus[] = [
@@ -27,26 +26,13 @@ export function OrderStatusTracker({
   const [status, setStatus] = useState<OrderStatus>(initialStatus);
 
   useEffect(() => {
-    const supabase = supabaseBrowser();
-    const channel = supabase
-      .channel(`order-${orderId}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "UPDATE",
-          schema: "public",
-          table: "orders",
-          filter: `id=eq.${orderId}`,
-        },
-        (payload) => {
-          const next = payload.new?.status as OrderStatus | undefined;
-          if (next) setStatus(next);
-        },
-      )
-      .subscribe();
-
+    const timer = setInterval(async () => {
+      const res = await fetch(`/api/orders/${orderId}`);
+      const data = await res.json().catch(() => null);
+      if (res.ok && data?.status) setStatus(data.status as OrderStatus);
+    }, 5000);
     return () => {
-      supabase.removeChannel(channel);
+      clearInterval(timer);
     };
   }, [orderId]);
 
