@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
 
 export function ToggleVendorApproved({
   vendorId,
@@ -19,12 +18,12 @@ export function ToggleVendorApproved({
     setError(null);
     setLoading(true);
     try {
-      const supabase = supabaseBrowser();
-      const { error } = await supabase
-        .from("vendors")
-        .update({ approved: !approved })
-        .eq("id", vendorId);
-      if (error) throw error;
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type: "vendor", id: vendorId, approved: !approved }),
+      });
+      if (!res.ok) throw new Error("Could not update vendor.");
       router.refresh();
     } catch (err: any) {
       setError(err?.message ?? "Could not update vendor.");
@@ -62,12 +61,12 @@ export function ToggleAgentActive({
     setError(null);
     setLoading(true);
     try {
-      const supabase = supabaseBrowser();
-      const { error } = await supabase
-        .from("delivery_agents")
-        .update({ available: !active })
-        .eq("id", agentId);
-      if (error) throw error;
+      const res = await fetch("/api/admin/users", {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ type: "agent", id: agentId, available: !active }),
+      });
+      if (!res.ok) throw new Error("Could not update agent.");
       router.refresh();
     } catch (err: any) {
       setError(err?.message ?? "Could not update agent.");

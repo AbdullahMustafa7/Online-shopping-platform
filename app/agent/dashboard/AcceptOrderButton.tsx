@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
 
 export function AcceptOrderButton({
   orderId,
@@ -19,13 +18,12 @@ export function AcceptOrderButton({
     setError(null);
     setLoading(true);
     try {
-      const supabase = supabaseBrowser();
-      const { error } = await supabase
-        .from("orders")
-        .update({ agent_id: agentId, status: "picked_up" })
-        .eq("id", orderId)
-        .is("agent_id", null);
-      if (error) throw error;
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: "picked_up", agentId }),
+      });
+      if (!res.ok) throw new Error("Could not accept delivery.");
       router.push(`/agent/deliveries/${orderId}`);
       router.refresh();
     } catch (err: any) {
