@@ -2,7 +2,6 @@
 
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase";
 import type { OrderStatus } from "@/lib/types";
 
 function nextForVendor(status: OrderStatus): OrderStatus | null {
@@ -29,12 +28,12 @@ export function OrderActions({
     setError(null);
     setLoading(true);
     try {
-      const supabase = supabaseBrowser();
-      const { error } = await supabase
-        .from("orders")
-        .update({ status: next })
-        .eq("id", orderId);
-      if (error) throw error;
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ status: next }),
+      });
+      if (!res.ok) throw new Error("Could not update order.");
       router.refresh();
     } catch (err: any) {
       setError(err?.message ?? "Could not update order.");
