@@ -8,6 +8,8 @@ import { Product } from "@/lib/models/Product";
 import { formatINR } from "@/lib/currency";
 import { DeleteProductButton } from "./DeleteProductButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function VendorProductsPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login?next=/vendor/products");

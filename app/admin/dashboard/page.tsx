@@ -7,6 +7,8 @@ import { User } from "@/lib/models/User";
 import { Vendor } from "@/lib/models/Vendor";
 import { formatINR } from "@/lib/currency";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminDashboardPage() {
   const userId = await getSessionUserId();
   if (!userId) redirect("/login?next=/admin/dashboard");

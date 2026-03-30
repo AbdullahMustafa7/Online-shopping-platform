@@ -5,6 +5,8 @@ import { connectDB } from "@/lib/mongodb";
 import { Product } from "@/lib/models/Product";
 import { formatINR } from "@/lib/currency";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminProductsPage() {
   const userId = await getSessionUserId();
   if (!userId) redirect("/login?next=/admin/products");

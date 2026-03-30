@@ -5,6 +5,8 @@ import { Cart } from "@/lib/models/Cart";
 import { Product } from "@/lib/models/Product";
 import { CartClient, type CartItemView } from "./CartClient";
 
+export const dynamic = "force-dynamic";
+
 export default async function CartPage() {
   const userId = await getSessionUserId();
   if (!userId) redirect("/login?next=/cart");

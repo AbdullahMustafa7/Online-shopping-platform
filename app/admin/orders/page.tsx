@@ -5,6 +5,8 @@ import { connectDB } from "@/lib/mongodb";
 import { Order } from "@/lib/models/Order";
 import { formatINR } from "@/lib/currency";
 
+export const dynamic = "force-dynamic";
+
 type SearchParams = { status?: string };
 
 export default async function AdminOrdersPage({

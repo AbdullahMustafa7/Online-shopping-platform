@@ -9,6 +9,8 @@ import { formatINR } from "@/lib/currency";
 import type { OrderStatus } from "@/lib/types";
 import { OrderStatusTracker } from "./OrderStatusTracker";
 
+export const dynamic = "force-dynamic";
+
 export default async function OrderDetailPage({
   params,
 }: {

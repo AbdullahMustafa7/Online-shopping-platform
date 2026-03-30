@@ -7,6 +7,8 @@ import { Vendor } from "@/lib/models/Vendor";
 import { DeliveryAgent } from "@/lib/models/DeliveryAgent";
 import { ToggleAgentActive, ToggleVendorApproved } from "./ApproveButtons";
 
+export const dynamic = "force-dynamic";
+
 export default async function AdminUsersPage() {
   const userId = await getSessionUserId();
   if (!userId) redirect("/login?next=/admin/users");

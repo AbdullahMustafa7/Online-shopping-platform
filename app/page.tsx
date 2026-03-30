@@ -4,6 +4,8 @@ import { Category } from "@/lib/models/Category";
 import { Product } from "@/lib/models/Product";
 import { formatINR } from "@/lib/currency";
 
+export const dynamic = "force-dynamic";
+
 export default function Home() {
   // Server component: safe to fetch categories/products directly.
   return (

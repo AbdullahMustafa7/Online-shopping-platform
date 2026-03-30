@@ -7,6 +7,8 @@ import { Vendor } from "@/lib/models/Vendor";
 import { Order } from "@/lib/models/Order";
 import { formatINR } from "@/lib/currency";
 
+export const dynamic = "force-dynamic";
+
 export default async function VendorDashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login?next=/vendor/dashboard");

@@ -8,6 +8,8 @@ import { Order } from "@/lib/models/Order";
 import { formatINR } from "@/lib/currency";
 import { AcceptOrderButton } from "./AcceptOrderButton";
 
+export const dynamic = "force-dynamic";
+
 export default async function AgentDashboardPage() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) redirect("/login?next=/agent/dashboard");

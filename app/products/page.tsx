@@ -4,6 +4,8 @@ import { Category } from "@/lib/models/Category";
 import { Product } from "@/lib/models/Product";
 import { formatINR } from "@/lib/currency";
 
+export const dynamic = "force-dynamic";
+
 type SearchParams = {
   q?: string;
   category?: string;
